@@ -1,15 +1,23 @@
 import streamlit as st
 import duckdb as db
+import os 
+from dotenv import load_dotenv
+import google.generativeai as genai
+import pandas as pd
 from pathlib import Path
 from streamlit_option_menu import option_menu
 from utilities.read_DB import AdsDB
 from visualisation.charts import pie_occupation_grouped, vacancies_per_locality
 
-db = AdsDB()
+#db = AdsDB()
+load_dotenv
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+model= genai.GenerativeModel("gemini-2.0-flash")
+#GEMINI_API_KEY=AIzaSyAayP2C2dXC8BqPyk0xLSUhpmbGOjlYtpU
 
 # Connecting to the data warehouse
-db_path = Path(__file__).parent / "../ads_data_warehouse.duckdb"
-connection = duckdb.connect(database=str(db_path), read_only=True)
+db_path = Path(__file__).parent / "ads_data_warehouse.duckdb"
+connection = db.connect(database=str(db_path), read_only=True)
 
 # Function for a dropdown menu to select different charts to see
 def chart_dropdown_menu():
@@ -56,4 +64,4 @@ if selected == "Data/IT":
     st.title (f"{selected}")
     chart_dropdown_menu()
 
-        
+
