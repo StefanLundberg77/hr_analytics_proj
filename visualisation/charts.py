@@ -11,6 +11,7 @@ import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
 import plotly_express as px
+import plotly.graph_objects as go
 from utilities.read_DB import AdsDB
 
 # init db connection
@@ -82,3 +83,28 @@ def vacancies_per_locality():
     # KPI
     total_ads = df["sum"].sum()
     st.metric(label="Totalt antal lediga tjänster", value=int(total_ads))
+
+
+# Spider chart logic
+
+def soft_skills_radar(skills: dict, title: str):
+    labels = list(skills.keys())
+    scores = list(skills.values())
+
+    # Radar charts need the data to be circular
+    labels += [labels[0]]
+    scores += [scores[0]]
+
+    angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
+    angles += [angles[0]]
+
+    fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
+    ax.plot(angles, scores, linewidth=1, linestyle='solid')
+    ax.fill(angles, scores, alpha=0.4)
+
+    ax.set_yticks(range(0, 11, 2))
+    ax.set_xticks(angles)
+    ax.set_xticklabels(labels)
+    ax.set_title(f"Top Soft Skills: {title}", size=14, pad=20)
+
+    st.pyplot(fig)
