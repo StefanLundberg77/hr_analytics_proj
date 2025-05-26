@@ -7,10 +7,13 @@ import pandas as pd
 from pathlib import Path
 from streamlit_option_menu import option_menu
 from utilities.read_DB import AdsDB
-from visualisation.charts import pie_occupation_grouped, vacancies_per_locality
+from visualisation.charts import pie_occupation_grouped, vacancies_per_locality, soft_skills_radar
+from dbt_code.LLM.dashboard_queries import get_job_titles_by_field, get_description_for_title
+from dbt_code.LLM.dashboard_logic import generate_soft_skills
+import json
 
 #db = AdsDB()
-load_dotenv
+load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 model= genai.GenerativeModel("gemini-2.0-flash")
 #GEMINI_API_KEY=AIzaSyAayP2C2dXC8BqPyk0xLSUhpmbGOjlYtpU
@@ -63,5 +66,32 @@ if selected == "Yrken med social inriktning":
 if selected == "Data/IT":
     st.title (f"{selected}")
     chart_dropdown_menu()
+
+# Skills generator
+    job_titles = get_job_titles_by_field(connection, f"{selected}")
+    selected_job= st.selectbox("Choose a job: ", job_titles)
+
+    if selected_job:
+        if st.button("Generate Spider Chart"):
+            desc = get_description_for_title(connection, selected_job)
+            result= generate_soft_skills(desc, selected_job)
+            st.markdown(f"### Top 5 Soft Skills for {selected_job}")
+
+            import re 
+            try:
+                match= re.search(r"\{[\s\S]*?\}", result)
+                if match:
+                    skills= json.loads(match.group())
+                    st.json(skills)
+                    soft_skills_radar(skills, selected_job)
+                else:
+                    st.error("No valid json found.")
+                    st.code(result)
+            except Exception as e:
+                st.error("Could not parse. Try again.")
+                st.code(result)
+
+
+st.markdown("## Soft Skills Generator")
 
 
