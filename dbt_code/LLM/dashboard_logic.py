@@ -10,9 +10,17 @@ model = genai.GenerativeModel("gemini-2.0-flash")
 
 def generate_soft_skills(text_blob, job_title):
     prompt = f"""
-    Analyze this job ad for '{job_title}' 
-    and extract the top 5 soft skills.
-    Return as JSON in the format:{{"skill": score (0-10)}}.
+    Analyze the following job ad for '{job_title}' 
+    and extract **the top 5 soft skills** in **valid JSON format**.
+    Format strictly like this example:
+    {{
+    "Skill 1": 7,
+    "Skill 2": 6,
+    "Skill 3": 9,
+    "Skill 4": 5,
+    "Skill 5": 8
+    }}
+    Only return the JSON object.
 
     {text_blob}
     """

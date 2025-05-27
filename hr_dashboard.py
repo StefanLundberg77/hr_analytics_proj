@@ -11,6 +11,7 @@ from visualisation.charts import pie_occupation_grouped, vacancies_per_locality,
 from dbt_code.LLM.dashboard_queries import get_job_titles_by_field, get_description_for_title
 from dbt_code.LLM.dashboard_logic import generate_soft_skills
 import json
+import re #regex to parse JSON
 
 #db = AdsDB()
 load_dotenv()
@@ -69,29 +70,39 @@ if selected == "Data/IT":
 
 # Skills generator
     job_titles = get_job_titles_by_field(connection, f"{selected}")
-    selected_job= st.selectbox("Choose a job: ", job_titles)
+    selected_job= st.selectbox("Choose a job: ", [""] + job_titles, key="job_title_select")
 
     if selected_job:
-        if st.button("Generate Spider Chart"):
+            st.markdown("## ✨Soft Skills Generator✨")
             desc = get_description_for_title(connection, selected_job)
             result= generate_soft_skills(desc, selected_job)
             st.markdown(f"### Top 5 Soft Skills for {selected_job}")
 
-            import re 
-            try:
-                match= re.search(r"\{[\s\S]*?\}", result)
-                if match:
-                    skills= json.loads(match.group())
-                    st.json(skills)
-                    soft_skills_radar(skills, selected_job)
-                else:
-                    st.error("No valid json found.")
+            match = re.search(r"\{[\s\S]*?\}", result, re.DOTALL)
+            if match:
+                raw_json = match.group()
+                try:
+                    skills= json.loads(raw_json)
+                    #sort 5 skills from most to least important
+                    sorted_skills=dict(sorted(skills.items(), key=lambda x: x[1], reverse=True))
+
+                    for skill, score in sorted_skills.items():
+                        st.markdown(f"- **{skill}**: {score}/10")
+
+                    # ✅ Button to generate chart
+                    if st.button("Generate Soft Skills Spider Chart"):
+                        soft_skills_radar(sorted_skills, selected_job)
+
+                except json.JSONDecodeError as e:
+                    st.error("JSON parse failed. Model output invalid.")
                     st.code(result)
-            except Exception as e:
+            else:
                 st.error("Could not parse. Try again.")
-                st.code(result)
+                st.code(result) 
+# comment out: cmd /
+# 
 
 
-st.markdown("## Soft Skills Generator")
+
 
 

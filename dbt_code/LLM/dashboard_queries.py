@@ -2,33 +2,32 @@
 
 # Soft/Hard skills query
 def get_job_titles_by_field(connection, field: str):
-    table = table_map.get(field)
-    if not table:
+    if field == "Data/IT":
+        table = "main.occupation_data_it"
+    elif field == "Säkerhet och bevakning":
+        table = "main.occupation_sakerhet_bevakning"
+    elif field == "Yrken med social inriktning":
+        table = "main.occupation_socialt_arbete"
+    else:
         return []
 
     result = connection.execute(f"""
-        SELECT DISTINCT headline 
-        FROM main.{table}
+        SELECT DISTINCT headline
+        FROM {table}
         WHERE headline IS NOT NULL
+        ORDER BY headline
     """).fetchdf()
-    
+
     return result["headline"].tolist()
 
 def get_description_for_title(connection, title: str):
-    result = connection.execute(f"""
+    query = """
         SELECT description
         FROM refined.dim_job_details
-        WHERE headline = '{title}'
-        AND description IS NOT NULL
+        WHERE headline = ? AND description IS NOT NULL
         LIMIT 1
-    """).fetchdf()
-    
+    """
+    result = connection.execute(query, [title]).fetchdf()
     return result["description"].iloc[0] if not result.empty else ""
 
 
-# Central map to resolve from UI label to mart table
-table_map = {
-    "Data/IT": "occupation_data_it",
-    "Säkerhet och bevakning": "occupation_sakerhet_bevakning",
-    "Yrken med social inriktning": "occupation_socialt_arbete"
-}

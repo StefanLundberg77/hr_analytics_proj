@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import plotly_express as px
 import plotly.graph_objects as go
 from utilities.read_DB import AdsDB
+import numpy as np
 
 # init db connection
 db = AdsDB()
@@ -92,19 +93,24 @@ def soft_skills_radar(skills: dict, title: str):
     scores = list(skills.values())
 
     # Radar charts need the data to be circular
-    labels += [labels[0]]
-    scores += [scores[0]]
+    labels.append(labels[0])
+    scores.append(scores[0])
 
-    angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
-    angles += [angles[0]]
+    fig= go.Figure()
 
-    fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
-    ax.plot(angles, scores, linewidth=1, linestyle='solid')
-    ax.fill(angles, scores, alpha=0.4)
+    fig.add_trace(go.Scatterpolar(
+        r=scores,
+        theta=labels,
+        fill='toself',
+        name='Soft Skills'
+    ))
 
-    ax.set_yticks(range(0, 11, 2))
-    ax.set_xticks(angles)
-    ax.set_xticklabels(labels)
-    ax.set_title(f"Top Soft Skills: {title}", size=14, pad=20)
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(visible=True, range=[0,10])
+        ),
+        showlegend=False,
+        title=f"Top Soft Skills for: {title}"
+    )
 
-    st.pyplot(fig)
+    st.plotly_chart(fig, use_container_width=True)
