@@ -30,4 +30,14 @@ def get_description_for_title(connection, title: str):
     result = connection.execute(query, [title]).fetchdf()
     return result["description"].iloc[0] if not result.empty else ""
 
+# Concatenated descriptions for each of the 3 occupational fields:
+def get_descriptions_for_field(connection, field:str):
+    query = """
+    SELECT j.description
+    FROM refined.dim_job_details j 
+    JOIN refined.dim_occupation o ON j.job_details_id = o.job_details_id
+    WHERE lower(o.occupation_field) = ? AND j.description IS NOT NULL 
+"""
+    result = connection.execute(query, [field.lower()]).fetchdf()
+    return " ".join(result["description"].tolist()) if not result.empty else ""
 

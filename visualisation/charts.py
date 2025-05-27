@@ -14,6 +14,7 @@ import plotly_express as px
 import plotly.graph_objects as go
 from utilities.read_DB import AdsDB
 import numpy as np
+from dbt_code.LLM.dashboard_queries import get_job_titles_by_field
 
 # init db connection
 db = AdsDB()
@@ -86,9 +87,48 @@ def vacancies_per_locality():
     st.metric(label="Totalt antal lediga tjänster", value=int(total_ads))
 
 
-# Spider chart logic
+# Spider chart logic for soft/hard skills generator
+# Soft skills radar chart has a 'occupation field average' as a baseline comparison to
+# show whether specific jobs have overlap or differences in desired skills for candidates
 
 def soft_skills_radar(skills: dict, title: str):
+    labels = list(skills.keys())
+    scores = list(skills.values())
+
+    # Radar charts need the data to be circular
+    labels.append(labels[0])
+    scores.append(scores[0])
+
+    fig= go.Figure()
+
+    # Baseline plot for 'industry/field average' soft skills
+    fig.add_trace(go.Scatterpolar(
+        r=scores,
+        theta=labels,
+        fill='toself',
+        name='Field Average Soft Skills'
+    ))
+
+    # Job-specific soft skills as chosen by ui-user
+    fig.add_trace(go.Scatterpolar(
+        r=scores,
+        theta=labels,
+        fill='toself',
+        name='Selected Job' # Selected job
+    ))
+
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(visible=True, range=[0,10])
+        ),
+        showlegend=True,
+        title=f"Top Soft Skills for: {title} against field standard"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+# HARD skills
+def hard_skills_radar(skills: dict, title: str):
     labels = list(skills.keys())
     scores = list(skills.values())
 
@@ -102,7 +142,7 @@ def soft_skills_radar(skills: dict, title: str):
         r=scores,
         theta=labels,
         fill='toself',
-        name='Soft Skills'
+        name='Hard Skills'
     ))
 
     fig.update_layout(
@@ -110,7 +150,7 @@ def soft_skills_radar(skills: dict, title: str):
             radialaxis=dict(visible=True, range=[0,10])
         ),
         showlegend=False,
-        title=f"Top Soft Skills for: {title}"
+        title=f"Top Hard Skills for: {title}"
     )
 
     st.plotly_chart(fig, use_container_width=True)
