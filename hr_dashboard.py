@@ -17,7 +17,7 @@ import re #regex to parse JSON
 load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 model= genai.GenerativeModel("gemini-2.0-flash")
-#GEMINI_API_KEY=AIzaSyAayP2C2dXC8BqPyk0xLSUhpmbGOjlYtpU
+
 
 # Connecting to the data warehouse
 db_path = Path(__file__).parent / "ads_data_warehouse.duckdb"
