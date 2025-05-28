@@ -1,5 +1,5 @@
 import streamlit as st
-import duckdb as db
+import duckdb
 import os 
 from dotenv import load_dotenv
 import google.generativeai as genai
@@ -21,7 +21,7 @@ model= genai.GenerativeModel("gemini-2.0-flash")
 
 # Connecting to the data warehouse
 db_path = Path(__file__).parent / "ads_data_warehouse.duckdb"
-connection = db.connect(database=str(db_path), read_only=True)
+connection = duckdb.connect(database=str(db_path), read_only=True)
 
 # Function for a dropdown menu to select different charts to see
 def chart_dropdown_menu(): # why not st.selectbox instead? easier to use
