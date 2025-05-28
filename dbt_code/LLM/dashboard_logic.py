@@ -64,10 +64,33 @@ def generate_field_average_soft_skills(text_blob, field):
     "Skill 2": 6,
     "Skill 3": 9,
     "Skill 4": 5,
-    "Skill 5": 8
+    "Skill 5": 5
     }}
     
     Job Descriptions:
     {text_blob}
     """
     return model.generate_content(prompt).text
+
+# Field prompts return lots of double strings which cause string
+# mismatch. So to get the field vs select_job to overlap this mapping
+# cleans up mutlilabels such as Teamwork/Collaboration: Teamwork
+
+def clean_skill_labels(skills_dict):
+    mapping = {
+        "Teamwork/Collaboration": "Teamwork",
+        "Collaboration": "Teamwork",
+        "Flexibility/Adaptability": "Adaptability",
+        "Written & Verbal Communication": "Communication",
+        "Written/Verbal Communication": "Communication",
+        "Communication Skills": "Communication",
+        "Creative Thinking": "Creativity",
+        "Problem Solving & Decision Making": "Problem Solving",
+        "Initiative/Proactive": "Proactive"
+        # etc more to be added as discovered
+    }
+    # k = original skill name (key)
+    # v = skill score
+    return {mapping.get(k, k): v for k, v in skills_dict.items()}
+    # looks up k(key) in mapping directory above and replaces it, and
+    # if not found, keeps as is. Keeps original values intact.

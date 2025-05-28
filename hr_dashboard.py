@@ -9,7 +9,7 @@ from streamlit_option_menu import option_menu
 from utilities.read_DB import AdsDB
 from visualisation.charts import pie_occupation_grouped, vacancies_per_locality, soft_skills_radar, hard_skills_radar
 from dbt_code.LLM.dashboard_queries import get_descriptions_for_field, get_job_titles_by_field, get_description_for_title
-from dbt_code.LLM.dashboard_logic import generate_field_average_soft_skills, generate_soft_skills, generate_hard_skills
+from dbt_code.LLM.dashboard_logic import generate_field_average_soft_skills, generate_soft_skills, generate_hard_skills, clean_skill_labels
 import json
 import re #regex to parse JSON
 
@@ -106,15 +106,27 @@ if selected_job:
             raw_json = match.group()
             try:
                 skills= json.loads(raw_json)
+                #skills = clean_skill_labels(skills)
                 #sort 5 skills from most to least important
                 sorted_skills=dict(sorted(skills.items(), key=lambda x: x[1], reverse=True))
 
                 for skill, score in sorted_skills.items():
                     st.markdown(f"- **{skill}**: {score}/10")
 
+                #Generate field average using all job ads in this field
+                field_blob = get_descriptions_for_field(connection, selected)
+                field_result = generate_field_average_soft_skills(field_blob, selected)
+                match_field = re.search(r"\{[\s\S]*?\}", field_result, re.DOTALL)
+                field_skills = json.loads(match_field.group())
+                #field_skills = clean_skill_labels(field_skills)if match_field else {}
+
                 # Button to generate spider chart
                 if st.button("Generate Soft Skills Spider Chart"):
-                    soft_skills_radar(sorted_skills, selected_job)
+                    soft_skills_radar(
+                        job_skills=sorted_skills,
+                        field_skills=field_skills,
+                        title=selected_job
+                    )
 
             except json.JSONDecodeError as e:
                 st.error("JSON parse failed. Model output invalid.")
