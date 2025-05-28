@@ -7,7 +7,7 @@ import pandas as pd
 from pathlib import Path
 from streamlit_option_menu import option_menu
 from utilities.read_DB import AdsDB
-from visualisation.charts import pie_occupation_grouped, vacancies_per_locality, soft_skills_radar, hard_skills_radar
+from visualisation.charts import pie_occupation_grouped, vacancies_per_locality, soft_skills_radar, soft_skills_field_bar_chart
 from dbt_code.LLM.dashboard_queries import get_descriptions_for_field, get_job_titles_by_field, get_description_for_title
 from dbt_code.LLM.dashboard_logic import generate_field_average_soft_skills, generate_soft_skills, generate_hard_skills, clean_skill_labels
 import json
@@ -24,7 +24,7 @@ db_path = Path(__file__).parent / "ads_data_warehouse.duckdb"
 connection = duckdb.connect(database=str(db_path), read_only=True)
 
 # Function for a dropdown menu to select different charts to see
-def chart_dropdown_menu(): # why not st.selectbox instead? easier to use
+def chart_dropdown_menu():
     selected_charts = st.multiselect(
         label='Charts',
         options=['Pie Chart', 'Spider Chart', 'Bar Chart']
@@ -60,20 +60,36 @@ if selected == "Home":
     st.title (f"{selected}")
 if selected == "Säkerhet och bevakning":
     st.title (f"{selected}")
-    chart_dropdown_menu()
+    selected_charts = chart_dropdown_menu()
 if selected == "Yrken med social inriktning":
     st.title (f"{selected}")
-    chart_dropdown_menu()
+    selected_charts = chart_dropdown_menu()
 if selected == "Data/IT":
     st.title (f"{selected}")
-    chart_dropdown_menu()
+    selected_charts = chart_dropdown_menu()
+
+    # Bar Chart for Skills
+
+    if 'Bar Chart' in selected_charts:
+        st.markdown("## Field-Level Skill Frequency")
+
+        field_blob = get_descriptions_for_field(connection, selected)
+        field_result = generate_field_average_soft_skills(field_blob, selected)
+
+        match = re.search(r"\{[\s\S]*?\}", result, re.DOTALL)
+        if match:
+            field_skills = json.loads(match.group())
+            soft_skills_field_bar_chart(field_skills, selected)
+        else:
+            st.warning("Could not generate.")
+            st.code(field_result)
 
 
 # HARD skills radar ui logic
 job_titles = get_job_titles_by_field(connection, f"{selected}")
 selected_job= st.selectbox("Choose a job: ", [""] + job_titles, key="job_title_select")
 
-if selected_job:
+if selected_job and 'Spider Chart' in selected_charts:
         st.markdown("## ✨Hard Skills Generator✨")
         desc = get_description_for_title(connection, selected_job)
         result= generate_hard_skills(desc, selected_job)
@@ -95,7 +111,7 @@ if selected_job:
 
 # SOFT Skills generator
 
-if selected_job:
+if selected_job and 'Spider Chart' in selected_charts:
         st.markdown("## ✨Soft Skills Generator✨")
         desc = get_description_for_title(connection, selected_job)
         result= generate_soft_skills(desc, selected_job)
@@ -134,3 +150,4 @@ if selected_job:
         else:
             st.error("Could not parse. Try again.")
             st.code(result) 
+

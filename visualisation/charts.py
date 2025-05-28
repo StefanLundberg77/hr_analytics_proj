@@ -86,6 +86,7 @@ def vacancies_per_locality():
     total_ads = df["sum"].sum()
     st.metric(label="Totalt antal lediga tjänster", value=int(total_ads))
 
+#Region SPIDER CHART
 
 # Spider chart logic for soft/hard skills generator
 # Soft skills radar chart has a 'occupation field average' as a baseline comparison to
@@ -134,20 +135,20 @@ def soft_skills_radar(job_skills: dict, field_skills: dict, title: str):
 
     st.plotly_chart(fig, use_container_width=True)
 
-# HARD skills
+ # HARD skills radar plot
 def hard_skills_radar(skills: dict, title: str):
-    labels = list(skills.keys())
-    scores = list(skills.values())
+    job_labels = list(job_skills.keys())
+    job_scores = list(job_skills.values())
 
     # Radar charts need the data to be circular
-    labels.append(labels[0])
-    scores.append(scores[0])
+    job_labels.append(job_labels[0])
+    job_scores.append(job_scores[0])
 
     fig= go.Figure()
 
     fig.add_trace(go.Scatterpolar(
-        r=scores,
-        theta=labels,
+        r=job_scores,
+        theta=job_labels,
         fill='toself',
         name='Hard Skills'
     ))
@@ -159,5 +160,29 @@ def hard_skills_radar(skills: dict, title: str):
         showlegend=False,
         title=f"Top Hard Skills for: {title}"
     )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+#endregion
+
+#Region Soft Skills Bar Chart
+
+def soft_skills_field_bar_chart(field_skills: dict, field_name: str):
+
+    df = pd.DataFrame(list(field_skills.items()), columns=["Skill", "Score"])
+    df = df.sort_values(by="Score", ascending=False)
+
+    #Plot Bar Chart
+    fig = px.bar(
+        df,
+        x="Skills",
+        y="Score",
+        text="Score",
+        labels={"Skill": "Soft Skill", "Score": "Importance"},
+        title=f"Top Soft Skills in {field_name}"
+    )
+    fig.update_traces(texttemplate='%{text}', textposition='outisde')
+    fig.update_layout(yaxis_range=[0, 10], xaxis_tickangle=-30)
 
     st.plotly_chart(fig, use_container_width=True)

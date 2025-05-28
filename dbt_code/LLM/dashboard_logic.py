@@ -35,7 +35,7 @@ def generate_hard_skills(text_blob, job_title):
     Analyze the following job ad for the role of '{job_title}'.
     Identify the **top 5 hard skills** that the ideal candidate should have.
     These are **technical or task-specific** skills (not soft skills like communication or teamwork).
-
+    Return the skill names in **English** only.
     Return your answer in **JSON format**, like this:
     {{
     "Skill A": 9,
@@ -58,6 +58,7 @@ def generate_field_average_soft_skills(text_blob, field):
     prompt = f"""
     Analyze these job descriptions for the occupational field '{field}'.
     Return the **top 5 soft skills** most frequently emphasized across all roles. 
+    Return the skill names in **English** only.
     Format the output as valid JSON like this example:
     {{
     "Skill 1": 7,
