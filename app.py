@@ -12,7 +12,6 @@ from pathlib import Path
 from streamlit_option_menu import option_menu
 import plotly.express as px
 
-# -- Anslutning till databasen
 db_path = Path(__file__).parent / "ads_data_warehouse.duckdb"
 connection = duckdb.connect(database=str(db_path), read_only=True)
 
@@ -67,8 +66,8 @@ with st.sidebar:
                 "color": "black"
             },
             "nav-link-selected": {
-                "background-color": "#002147",  # marinblå bakgrund för aktivt val
-                "color": "white"                # vit text
+                "background-color": "#002147", 
+                "color": "white"
             },
         }
     )
@@ -97,5 +96,4 @@ if selected != "Home":
     show_kpis(df)
     chart_dropdown_menu(df)
 
-# -- Stäng anslutningen
 connection.close()
