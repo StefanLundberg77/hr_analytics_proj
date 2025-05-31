@@ -53,6 +53,28 @@ def generate_hard_skills(text_blob, job_title):
     """
     return model.generate_content(prompt).text
 
+# Summary of candidate profile based on hard skills
+# Includes personality prompt for AI HR assistant 'HiRe'
+def generate_hard_skills_summary(employer_name, selected_job, text_blob):
+
+    prompt = f"""
+    Du är en HR-assistent som analyserar platsannonser åt rekryterare.
+
+    Sammanfatta platsannonsen på 3-4 meningar riktad till en rekryterare.
+    Beskriv att **{employer_name}** söker en **{selected_job}**,
+    och inkludera att kandidaten bör ha följande tekniska färdigheter ("hard skills").
+    Använd **fet stil** på de viktigaste tre färdigheterna.
+
+    Texten ska ha en formell och informativ ton, som om den vore del av ett internt HR-dokument. 
+    Undvik gärna inledande fraser, börja direkt med roll och ort, och håll språket sakligt.
+    
+    Platsannons:
+
+    {text_blob}
+    """
+    return model.generate_content(prompt).text.strip()
+
+
 # Field average prompt logic
 def generate_field_average_soft_skills(text_blob, field):
     prompt = f"""
@@ -96,3 +118,25 @@ def clean_skill_labels(skills_dict):
     return {mapping.get(k, k): v for k, v in skills_dict.items()}
     # looks up k(key) in mapping directory above and replaces it, and
     # if not found, keeps as is. Keeps original values intact.
+
+# Static + personality-based greeting phrase from "HiRe - the HR assistant"
+def get_ai_intro():
+    return (
+        "\U0001F9D1\u200D\U0001F4BB **Använd HiRe's analysverktyg för att matcha rätt kandidat till rätt jobb genom att hämta och analysera platsannonser.** "
+        "Välj en yrkestitel i rutan nedan så hjälper den dig att hitta den perfekta kandidaten till jobbet."
+    )
+
+def get_ai_soft_skills():
+    return (
+        "**Utöver tekniska färdigheter och relevant erfarenhet spelar även mjuka värden en avgörande " 
+        "roll i att hitta rätt kandidat för rätt roll.** Nedan följer en sammanställning av de fem viktigaste "
+        "mjuka kompetenserna (soft skills) för tjänsten."
+    )
+
+def get_ai_soft_skills_summary(selected_job):
+    return (
+        f"Mjuka värden visar hur väl en kandidat samarbetar, kommunicerar och anpassar sig. "
+        f"De kompletterar tekniska färdigheter och är avgörande för långsiktig framgång. "
+        f"Vill du jämföra mjuka kompetenser för en **{selected_job}** med branschsnittet? "
+        f"Klicka på knappen nedan för att generera en graf som du kan lägga upp på **LinkedIn**."
+    )

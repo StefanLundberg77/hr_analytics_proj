@@ -18,8 +18,8 @@ import json
 import re
 import google.generativeai as genai
 
-from dbt_code.LLM.dashboard_queries import get_descriptions_for_field, get_job_titles_by_field, get_description_for_title
-from dbt_code.LLM.dashboard_logic import generate_field_average_soft_skills, generate_soft_skills, generate_hard_skills, clean_skill_labels
+from dbt_code.LLM.dashboard_queries import get_descriptions_for_field, get_job_titles_by_field, get_description_for_title, get_employer_name_for_title
+from dbt_code.LLM.dashboard_logic import generate_field_average_soft_skills, generate_soft_skills, generate_hard_skills, generate_hard_skills_summary, clean_skill_labels, get_ai_intro, get_ai_soft_skills, get_ai_soft_skills_summary
 from visualisation.charts import soft_skills_radar
 
 # -- Anslutning till databasen
@@ -213,6 +213,12 @@ with st.sidebar:
     )
 
 st.write(f"Du valde: {selected}")
+# Initial front page with company name and slogan
+st.markdown("# HiRe\u2122 Talangverktyg") #python unicode for 'TM' emoji
+st.markdown("### \U0001F50D Sök") #unicode looking glass emoji
+st.markdown("### \U0001F4CA Visualisera") # unicode bar chart emoji
+st.markdown("### \u2705 Matcha") # unicode check mark emoji
+st.markdown("### - Rätt Kandidat till Rätt Jobb")
 
 if selected != "Home":
     # SQL-fråga
@@ -238,56 +244,66 @@ if selected != "Home":
 
 #----- Spider/Radar Chart sektion under visualiseringar ----
 
-st.subheader("\U0001F52C Jämför kompetenser")
+if selected != "Home":
+    st.markdown("## Analysera kompetenser \U0001F9E0 ") # Python Unicode for brain emoji
+    st.markdown(get_ai_intro())
 
-# Field selector
-dashboard_field = st.selectbox("Välj yrkesområde för att jämföra mjuka kompetenser:", ["Data/IT", "Säkerhet och bevakning", "Yrken med social inriktning"])
+    dashboard_field = selected
 
-# Job selector
-job_titles = get_job_titles_by_field(connection, dashboard_field)
-selected_job = st.selectbox("Välj ett yrke att analysera:", [""] + job_titles)
+# Job selector based on occupation field selected from side bar
+    job_titles = get_job_titles_by_field(connection, dashboard_field)
+    selected_job = st.selectbox(label="",
+                                options=["Välj ett yrke att analysera:"] + job_titles,
+                                index=0
+                                )
 
 # Skill generation
-if selected_job:
-    desc = get_description_for_title(connection, selected_job)
+    if selected_job != "Välj ett yrke att analysera:":
+        desc = get_description_for_title(connection, selected_job)
+        employer_name = get_employer_name_for_title(connection, selected_job, dashboard_field)
+    
+        st.subheader(f"{employer_name} söker en {selected_job}")
+        
+        #Gemini summary based on hard skills from selected job
+        personality_summary = generate_hard_skills_summary(employer_name, selected_job, desc)
+        st.markdown(f" {personality_summary}")
+        st.markdown(f"#### Topp 5 färdigheter för rollen som {selected_job}: ")
 
-    st.markdown("#### Topp 5 Hard Skills för {selected_job}")
-    hard_result = generate_hard_skills(desc, selected_job)
-    hard_json = re.search(r"\{[\s\S]*?\}", hard_result, re.DOTALL)
-    if hard_json:
-        hard_skills = json.loads(hard_json.group())
-        for skill, score in hard_skills.items():
-            st.markdown(f"- **{skill}**: {score}/10")
+        hard_result = generate_hard_skills(desc, selected_job)
+        hard_json = re.search(r"\{[\s\S]*?\}", hard_result, re.DOTALL)
+        if hard_json:
+            hard_skills = json.loads(hard_json.group())
+            for skill, score in hard_skills.items():
+                st.markdown(f"- **{skill}**: {score}/10")
+        
+        st.markdown("#### Mjuka värden")
+        st.markdown(get_ai_soft_skills())
 
-    st.markdown("#### Topp 5 Soft Skills för {selected_job}")
-    soft_result = generate_soft_skills(desc, selected_job)
-    soft_json = re.search(r"\{[\s\S]*?\}", soft_result, re.DOTALL)
-    if soft_json:
-        soft_skills = json.loads(soft_json.group())
-        cleaned_soft = clean_skill_labels(soft_skills)
-        for skill, score in cleaned_soft.items():
-            st.markdown(f"- **{skill}**: {score}/10")
+        soft_result = generate_soft_skills(desc, selected_job)
+        soft_json = re.search(r"\{[\s\S]*?\}", soft_result, re.DOTALL)
+        if soft_json:
+            soft_skills = json.loads(soft_json.group())
+            cleaned_soft = clean_skill_labels(soft_skills)
+            for skill, score in cleaned_soft.items():
+                st.markdown(f"- **{skill}**: {score}/10")
+
+        st.markdown(get_ai_soft_skills_summary(selected_job))
 
     # --- Button to trigger spider chart ---
-    if st.button("Visa i Spider Chart"):
-        field_blob = get_descriptions_for_field(connection, dashboard_field)
-        field_result = generate_field_average_soft_skills(field_blob, dashboard_field)
-        match_field = re.search(r"\{[\s\S]*?\}", field_result, re.DOTALL)
+        if st.button("Visa i Spider Chart"):
+            field_blob = get_descriptions_for_field(connection, dashboard_field)
+            field_result = generate_field_average_soft_skills(field_blob, dashboard_field)
+            match_field = re.search(r"\{[\s\S]*?\}", field_result, re.DOTALL)
 
-        if match_field:
-            field_skills = json.loads(match_field.group())
-            cleaned_field_skills = clean_skill_labels(field_skills)
-            soft_skills_radar(
-                job_skills=cleaned_soft,
-                field_skills=cleaned_field_skills,
-                title=selected_job
-            )
-        else:
-            st.error("Kunde inte skapa fältgenomsnitt.")
-
-
-
-
-
+            if match_field:
+                field_skills = json.loads(match_field.group())
+                cleaned_field_skills = clean_skill_labels(field_skills)
+                soft_skills_radar(
+                    job_skills=cleaned_soft,
+                    field_skills=cleaned_field_skills,
+                    title=selected_job
+                )
+            else:
+                st.error("Kunde inte skapa fältgenomsnitt.")
 
 connection.close()

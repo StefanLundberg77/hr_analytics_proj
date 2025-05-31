@@ -1,6 +1,7 @@
 # SQL queries to query df for Dashboard
 
-# Soft/Hard skills query
+
+# Function calling job titles from fields
 def get_job_titles_by_field(connection, field: str):
     if field == "Data/IT":
         table = "mart.occupation_data_it"
@@ -10,15 +11,35 @@ def get_job_titles_by_field(connection, field: str):
         table = "mart.occupation_socialt_arbete"
     else:
         return []
-
-    result = connection.execute(f"""
+ 
+    query = f"""
         SELECT DISTINCT headline
         FROM {table}
         WHERE headline IS NOT NULL
         ORDER BY headline
-    """).fetchdf()
-
+    """
+    result = connection.execute(query).fetchdf()
     return result["headline"].tolist()
+
+# Function calling company names from fields
+def get_employer_name_for_title(connection, title:str, field:str):
+    if field == "Data/IT":
+        table = "mart.occupation_data_it"
+    elif field == "Säkerhet och bevakning":
+        table = "mart.occupation_sakerhet_bevakning"
+    elif field == "Yrken med social inriktning":
+        table = "mart.occupation_socialt_arbete"
+    else:
+        return "Ett företag"
+    
+    query = f"""
+        SELECT employer__name AS employer_name
+        FROM {table}
+        WHERE headline = ? AND employer__name IS NOT NULL 
+        LIMIT 1
+    """
+    result = connection.execute(query, [title]).fetchdf()
+    return result["employer_name"].iloc[0] if not result.empty else "ett företag"
 
 def get_description_for_title(connection, title: str):
     query = """
