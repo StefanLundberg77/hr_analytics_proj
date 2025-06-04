@@ -19,12 +19,14 @@ models:
   - name: src_employer_name
     description: "Contains employer name and location data from job ads."
     columns:
-      - name: employer__name # ska dessa matcha src eller använda alias?
+      - name: employer_name # ska dessa matcha src eller använda alias?
         description: "Name of the employer"
-      - name: workplace_address__municipality
+      - name: workplace_address_municipality
         description: "Municipality of the workplace"
-      - name: workplace_address__country
+      - name: workplace_address_country
         description: "Country of the workplace"
+      - name: employer_workplace
+        description: "Workplace name"
 
   - name: src_job_ads
     description: "Provides key data from job ads."
@@ -34,11 +36,11 @@ models:
         tests:
           - not_null
           - unique
-      - name: employer__workplace
+      - name: employer_workplace
         description: "Employer workplace name"
-      - name: occupation__label
+      - name: occupation_label
         description: "Occupation label"
-      - name: occupation_field__label # occupation_field
+      - name: occupation_field
         description: "Occupation field label"
 
   - name: src_job_details
@@ -49,23 +51,35 @@ models:
         tests:
           - not_null
           - unique
-      - name: description__text # description
+      - name: description
         description: "Plain text job description"
-      - name: duration__label # duration
+      - name: duration
         description: "Job duration label"
-      - name: employment_type__label # employment_type
+      - name: employment_type
         description: "Employment type label"
-      - name: working_hours_type__label # working_hours_type
+      - name: working_hours_type
         description: "Working hours type label"
+      - name: application_deadline
+        description: "Final date for the job"
+      - name: vacancies
+        description: "Number of vacancies"
+      - name: relevance
+        description: "Relevance score"
 
   - name: src_occupation
     description: "Occupation classification and hierarchy info from job ads."
     columns:
-      - name: occupation__concept_id as occupation_id #occupation_id
+      - name: occupation_id
         description: "Occupation concept ID"
         tests:
           - not_null
-      - name: occupation_group__label #occupation_group
+      - name: occupation_group
         description: "Occupation group label"
-      - name: occupation_field__label #occupation_field
+      - name: occupation_field
         description: "Occupation field label"
+      - name: occupation
+        description: "Label of the occupation."
+      - name: occupation_group_id
+        description: "Identifier for the occupation group."
+      - name: occupation_field_id
+        description: "Identifier for the occupation field."

@@ -12,10 +12,14 @@ from pathlib import Path
 from streamlit_option_menu import option_menu
 import plotly.express as px
 import pandas as pd
-import seaborn as sns
 
 db_path = Path(__file__).parent / "ads_data_warehouse.duckdb"
 connection = duckdb.connect(database=str(db_path), read_only=True)
+
+# --- Anslutning till google Gemini LLM
+load_dotenv()
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+model = genai.GenerativeModel("gemini-2.0-flash")
 
 # -- Funktion för att skapa KPI:er med Streamlit-kolumner
 def show_kpis(df):
@@ -67,15 +71,7 @@ def chart_dropdown_menu(df):
             df_filtered = df.copy()
         
 
-        #--Filtrerar efter kommun
-        kommuner = df_filtered['municipality'].dropna().unique().tolist()
-        kommuner.sort()
-        selected_kommuner = st.multiselect("Välj kommun(er) att visa separat (övriga grupperas)", kommuner)
-        
-        if selected_kommuner:
-            #--Varje yrke blir grupperat + samlar ihop resten som övrigt
-            selected_df = df_filtered[df_filtered['municipality'].isin(selected_kommuner)]
-            others_df = df_filtered[~df_filtered['municipality'].isin(selected_kommuner)]
+
             others_sum = others_df['num_vacancies'].sum()
             others_row = {'municipality': 'Övriga', 'num_vacancies': others_sum}
             selected_grouped = selected_df.groupby(['municipality', 'occupation'], as_index=False)['num_vacancies'].sum()
@@ -146,13 +142,32 @@ def chart_dropdown_menu(df):
     #--Bar chart visas om vald
     if "Bar Chart" in selected_charts:
         if visualize_option == "Antal jobb per kommun":
-            fig = px.bar(plot_df, x="municipality", y="num_vacancies", color="occupation", title="Jobb per kommun")
+            fig = px.bar(plot_df, x="municipality", y="num_vacancies", color="occupation", title="Jobb per kommun", 
+                    labels={"municipality": "Kommun", "num_vacancies": "Antal lediga tjänster"},
+                    hover_name='occupation',
+                    hover_data={"occupation": False, "municipality":True, "num_vacancies": True},
+                    text_auto=True)
+            
         elif visualize_option == "Fördelning av jobb per yrke":
-            fig = px.bar(plot_df, x="occupation", y="num_vacancies", title="Jobb per yrke")
+            fig = px.bar(plot_df, x="occupation", y="num_vacancies", color="occupation", title="Jobb per yrke",
+                    labels={"occupation": "Beteckning", "num_vacancies": "Antal lediga tjänster"},
+                    hover_name='occupation',
+                    hover_data={"occupation": False, "num_vacancies": True},
+                    text_auto=True)
+
         elif visualize_option == "Lönetyp":
-            fig = px.bar(plot_df, x="salary_type", y="num_vacancies", title="Lönetyp")
+            fig = px.bar(plot_df, x="salary_type", y="num_vacancies", color="salary_type", title="Lönetyp",
+                    labels={"salary_type": "Lönetyp", "num_vacancies": "Antal lediga tjänster"},
+                    hover_name='salary_type',
+                    hover_data={"salary_type": False, "num_vacancies": True},
+                    text_auto=True)
+            
         elif visualize_option == "Omfattning":
-            fig = px.bar(plot_df, x="working_hours_type", y="num_vacancies", title="Omfattning")
+            fig = px.bar(plot_df, x="working_hours_type", y="num_vacancies", color="working_hours_type", title="Omfattning",
+                    labels={"working_hours_type": "Beteckning", "num_vacancies": "Antal lediga tjänster"},
+                    hover_name='working_hours_type',
+                    hover_data={"working_hours_type": False, "num_vacancies": True},
+                    text_auto=True)
         st.plotly_chart(fig)
 
 # -- Scatterplot visas om vald
@@ -200,6 +215,12 @@ with st.sidebar:
     )
 
 st.write(f"Du valde: {selected}")
+# Initial front page with company name and slogan
+st.markdown("# HiRe\u2122 Talangverktyg") #python unicode for 'TM' emoji
+st.markdown("### \U0001F50D Sök") #unicode looking glass emoji
+st.markdown("### \U0001F4CA Visualisera") # unicode bar chart emoji
+st.markdown("### \u2705 Matcha") # unicode check mark emoji
+st.markdown("### - Rätt Kandidat till Rätt Jobb")
 
 if selected != "Home":
     # SQL-fråga
@@ -222,5 +243,69 @@ if selected != "Home":
     st.title(f"{selected} 🌍")
     show_kpis(df)
     chart_dropdown_menu(df)
+
+#----- Spider/Radar Chart sektion under visualiseringar ----
+
+if selected != "Home":
+    st.markdown("## Analysera kompetenser \U0001F9E0 ") # Python Unicode for brain emoji
+    st.markdown(get_ai_intro())
+
+    dashboard_field = selected
+
+# Job selector based on occupation field selected from side bar
+    job_titles = get_job_titles_by_field(connection, dashboard_field)
+    selected_job = st.selectbox(label="",
+                                options=["Välj ett yrke att analysera:"] + job_titles,
+                                index=0
+                                )
+
+# Skill generation
+    if selected_job != "Välj ett yrke att analysera:":
+        desc = get_description_for_title(connection, selected_job)
+        employer_name = get_employer_name_for_title(connection, selected_job, dashboard_field)
+    
+        st.subheader(f"{employer_name} söker en {selected_job}")
+        
+        #Gemini summary based on hard skills from selected job
+        personality_summary = generate_hard_skills_summary(employer_name, selected_job, desc)
+        st.markdown(f" {personality_summary}")
+        st.markdown(f"#### Topp 5 Färdigheter (Hard Skills) för rollen som {selected_job} ")
+
+        hard_result = generate_hard_skills(desc, selected_job)
+        hard_json = re.search(r"\{[\s\S]*?\}", hard_result, re.DOTALL)
+        if hard_json:
+            hard_skills = json.loads(hard_json.group())
+            for skill, score in hard_skills.items():
+                st.markdown(f"- **{skill}**: {score}/10")
+        
+        st.markdown("#### Mjuka värden (Soft Skills)")
+        st.markdown(get_ai_soft_skills())
+
+        soft_result = generate_soft_skills(desc, selected_job)
+        soft_json = re.search(r"\{[\s\S]*?\}", soft_result, re.DOTALL)
+        if soft_json:
+            soft_skills = json.loads(soft_json.group())
+            cleaned_soft = clean_skill_labels(soft_skills)
+            for skill, score in cleaned_soft.items():
+                st.markdown(f"- **{skill}**: {score}/10")
+
+        st.markdown(get_ai_soft_skills_summary(selected_job))
+
+    # --- Button to trigger spider chart ---
+        if st.button("Visa i Spider Chart"):
+            field_blob = get_descriptions_for_field(connection, dashboard_field)
+            field_result = generate_field_average_soft_skills(field_blob, dashboard_field)
+            match_field = re.search(r"\{[\s\S]*?\}", field_result, re.DOTALL)
+
+            if match_field:
+                field_skills = json.loads(match_field.group())
+                cleaned_field_skills = clean_skill_labels(field_skills)
+                soft_skills_radar(
+                    job_skills=cleaned_soft,
+                    field_skills=cleaned_field_skills,
+                    title=selected_job
+                )
+            else:
+                st.error("Kunde inte skapa fältgenomsnitt.")
 
 connection.close()
