@@ -12,17 +12,7 @@ from pathlib import Path
 from streamlit_option_menu import option_menu
 import plotly.express as px
 import pandas as pd
-import os
-from dotenv import load_dotenv
-import json
-import re
-import google.generativeai as genai
 
-from dbt_code.LLM.dashboard_queries import get_descriptions_for_field, get_job_titles_by_field, get_description_for_title, get_employer_name_for_title
-from dbt_code.LLM.dashboard_logic import generate_field_average_soft_skills, generate_soft_skills, generate_hard_skills, generate_hard_skills_summary, clean_skill_labels, get_ai_intro, get_ai_soft_skills, get_ai_soft_skills_summary
-from visualisation.charts import soft_skills_radar
-
-# -- Anslutning till databasen
 db_path = Path(__file__).parent / "ads_data_warehouse.duckdb"
 connection = duckdb.connect(database=str(db_path), read_only=True)
 
@@ -54,7 +44,7 @@ def show_kpis(df):
         # cols[0].metric(label="Yrket med flest jobb", value=top_occupation, label_visibility="visible", border=True, help=str(df.iloc[0]["occupation"]))
         # cols[0].metric(label="Kommun med flest jobb", value=top_municipality, label_visibility="visible", border=True, help=str(df.iloc[0]["municipality"]))
 
-# -- Funktion för diagram-menyn med Streamlit
+#-- Funktion för diagram-menyn med Streamlit
 def chart_dropdown_menu(df):
     st.subheader("📊 Välj vad du vill visualisera:")
     visualize_option = st.selectbox(
@@ -70,7 +60,7 @@ def chart_dropdown_menu(df):
     plot_df = df
     
     if visualize_option == "Antal jobb per kommun":
-        # Filtrerar efter land
+        #--Filtrerar efter land
         countries = df['country'].dropna().unique().tolist()
         countries.sort()
         selected_country = st.selectbox("Välj land:", options=["Alla"] + countries)
@@ -81,22 +71,14 @@ def chart_dropdown_menu(df):
             df_filtered = df.copy()
         
 
-        # Filtrerar efter kommun
-        municipality = df_filtered['municipality'].dropna().unique().tolist()
-        municipality.sort()
-        selected_municipality = st.multiselect("Välj kommun(er) att visa separat (övriga grupperas)", municipality)
-        
-        if selected_municipality:
-            # Varje yrke blir grupperat + samlar ihop resten som övrigt
-            selected_df = df_filtered[df_filtered['municipality'].isin(selected_municipality)]
-            others_df = df_filtered[~df_filtered['municipality'].isin(selected_municipality)]
+
             others_sum = others_df['num_vacancies'].sum()
             others_row = {'municipality': 'Övriga', 'num_vacancies': others_sum}
             selected_grouped = selected_df.groupby(['municipality', 'occupation'], as_index=False)['num_vacancies'].sum()
             others_df_grouped = pd.DataFrame([others_row])
             plot_df = pd.concat([selected_grouped, others_df_grouped], ignore_index=True)
         else:
-            # Visar top 10 yrken + övriga om inga yrken är valda
+            #--Visar top 10 yrken + övriga om inga yrken är valda
             grouped = df_filtered.groupby(['municipality', 'occupation'], as_index=False)['num_vacancies'].sum()
             top10 = grouped.groupby('municipality')['num_vacancies'].sum().nlargest(10).index
             top10_df = grouped[grouped['municipality'].isin(top10)]
@@ -107,13 +89,13 @@ def chart_dropdown_menu(df):
             plot_df = pd.concat([top10_df, others_df_grouped], ignore_index=True)
 
     elif visualize_option == "Fördelning av jobb per yrke":
-        # Filtrerar efter yrken
+        #--Filtrerar efter yrken
         jobs = df['occupation'].dropna().unique().tolist()
         jobs.sort()
         selected_jobs = st.multiselect("Välj yrke/yrken (övriga grupperas)", jobs)
         
         if selected_jobs:
-            # Varje yrke blir grupperat + samlar ihop resten som övrigt
+            #--Varje yrke blir grupperat + samlar ihop resten som övrigt
             selected_df = df[df['occupation'].isin(selected_jobs)]
             others_df = df[~df['occupation'].isin(selected_jobs)]
             others_sum = others_df['num_vacancies'].sum()
@@ -122,7 +104,7 @@ def chart_dropdown_menu(df):
             others_df_grouped = pd.DataFrame([others_row])
             plot_df = pd.concat([selected_grouped, others_df_grouped], ignore_index=True)
         else:
-            # Visar top 10 yrken + övriga om inga yrken är valda
+            #--Visar top 10 yrken + övriga om inga yrken är valda
             grouped = df.groupby(['occupation'], as_index=False)['num_vacancies'].sum()
             top10 = grouped.nlargest(10, 'num_vacancies')['occupation']
             top10_df = grouped[grouped['occupation'].isin(top10)]
@@ -137,15 +119,15 @@ def chart_dropdown_menu(df):
     elif visualize_option == "Omfattning":
         plot_df = df.groupby(['working_hours_type'], as_index=False)['num_vacancies'].sum()
     
-    # Val för vilka charts man vill se
+    #--Val för vilka charts man vill se
     st.subheader("📊 Välj diagramtyp:")
     selected_charts = st.multiselect(
         label="Diagramtyper",
-        options=["Donut Chart", "Bar Chart"],
+        options=["Donut Chart", "Bar Chart", "Scatter Plot"],
         default=["Donut Chart"]
     )
     
-    # Donut chart visas om vald
+    #--Donut chart visas om vald
     if "Donut Chart" in selected_charts:
         if visualize_option == "Antal jobb per kommun":
             fig = px.pie(plot_df, names="municipality", values="num_vacancies", title="Jobb per kommun", hole=0.4)
@@ -157,7 +139,7 @@ def chart_dropdown_menu(df):
             fig = px.pie(plot_df, names="working_hours_type", values="num_vacancies", title="Omfattning", hole=0.4)
         st.plotly_chart(fig)
 
-    # Bar chart visas om vald
+    #--Bar chart visas om vald
     if "Bar Chart" in selected_charts:
         if visualize_option == "Antal jobb per kommun":
             fig = px.bar(plot_df, x="municipality", y="num_vacancies", color="occupation", title="Jobb per kommun", 
@@ -188,6 +170,26 @@ def chart_dropdown_menu(df):
                     text_auto=True)
         st.plotly_chart(fig)
 
+# -- Scatterplot visas om vald
+    if "Scatter Plot" in selected_charts:
+        if visualize_option == "Antal jobb per kommun":
+            fig = px.scatter(plot_df, x="municipality", y="num_vacancies", color="occupation", size="num_vacancies",
+                        title=" Jobb per kommun  Scatterplot")
+        elif visualize_option == "Fördelning av jobb per yrke":
+            fig = px.scatter(plot_df, x="occupation", y="num_vacancies", color="occupation", size="num_vacancies",
+                        title=" Yrkesfördelning  Scatterplot")
+        elif visualize_option == "Lönetyp":
+            fig = px.scatter(plot_df, x="salary_type", y="num_vacancies", color="salary_type", size="num_vacancies",
+                        title=" Lönetyp  Scatterplot")
+        elif visualize_option == "Omfattning":
+            fig = px.scatter(plot_df, x="working_hours_type", y="num_vacancies", color="working_hours_type", size="num_vacancies",
+                        title=" Omfattning  Scatterplot")
+        st.plotly_chart(fig)
+    #--Uppdaterar layout och hover-effekter
+        fig.update_layout(dragmode="zoom", hovermode="closest")
+        fig.update_traces(marker=dict(line=dict(width=1)))
+
+
 # -- Sidomeny med option_menu, marinblå färg
 with st.sidebar:
     selected = option_menu(
@@ -206,8 +208,8 @@ with st.sidebar:
                 "color": "black"
             },
             "nav-link-selected": {
-                "background-color": "#002147",  # marinblå bakgrund för aktivt val
-                "color": "white"                # vit text
+                "background-color": "#002147", 
+                "color": "white"
             },
         }
     )
